@@ -320,7 +320,6 @@ function autofill() {
 
   setEvent('autofill start.');
   navigator.credentials.get({
-    signal: abortController.signal ,
     mediation: 'conditional',  
     publicKey: {
       rpId: rpId,
