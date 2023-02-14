@@ -325,7 +325,8 @@ function autofill() {
       rpId: rpId,
       userVerification: userVerification,
       challenge: toBuffer8(challenge),
-    }
+    },
+    signal: abortController.signal,
   }).then(success => {
     document.getElementById('get-id').innerText = success.id;
     document.getElementById('get-type').innerText = success.type;
