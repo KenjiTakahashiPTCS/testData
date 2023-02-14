@@ -296,8 +296,6 @@ function get() {
       allowCredentials: allowCredentials,
       challenge: toBuffer8(challenge),
     },
-    signal: abortController.signal,
-    mediation: 'conditional'  
   }).then(success => {
     document.getElementById('get-id').innerText = success.id;
     document.getElementById('get-type').innerText = success.type;
@@ -322,7 +320,8 @@ function autofill() {
 
   setEvent('autofill start.');
   navigator.credentials.get({
-    mediation: 'conditional',
+    signal: abortController.signal ,
+    mediation: 'conditional',  
     publicKey: {
       rpId: rpId,
       userVerification: userVerification,
