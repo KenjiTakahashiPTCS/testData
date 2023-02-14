@@ -319,6 +319,9 @@ function autofill() {
   let userVerification = $("#userVerification").val();
 
   setEvent('autofill start.');
+
+  const abortController = new AbortController();
+  
   navigator.credentials.get({
     mediation: 'conditional',  
     publicKey: {
