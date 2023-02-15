@@ -24,7 +24,7 @@
 <body>
   <div>
     RpID <input type="text" id="rp-id" value=""><br>
-    UserID <input type="text" id="user-id" autocomplete="username webauthn"><br>
+    UserID <input type="text" id="user-id" x-model="username" autocomplete="username webauthn"><br>
     UserVerification <select id="userVerification"><option>required</option><option>preferred</option><option>discouraged</option></select><br>
     Attestation <select id="attestation"><option>direct</option><option>indirect</option><option>none</option></select><br>
     AuthenticatorAttachment <select id="authenticatorAttachment"><option>platform</option><option>cross-platform</option></select><br>
@@ -44,6 +44,7 @@
   <button onClick="create();">Create Security Key</button>
   <button onClick="get();">Get Security Key</button>
   <button onClick="autofill();">Autofill</button>
+  <button onClick="autofillIOSSafari();">AutofillSafari</button>
   <hr>
   <span id="event"></span><br>
   <hr>
@@ -321,7 +322,42 @@ function autofill() {
   setEvent('autofill start.');
 
   const abortController = new AbortController();
-  
+
+  navigator.credentials.get({
+    mediation: 'conditional',  
+    publicKey: {
+      rpId: rpId,
+      userVerification: userVerification,
+      challenge: toBuffer8(challenge),
+    },
+    signal: abortController.signal,
+  }).then(success => {
+    document.getElementById('get-id').innerText = success.id;
+    document.getElementById('get-type').innerText = success.type;
+    document.getElementById('get-cbor').innerText = JSON.stringify(parseAuthenticatorData(success.response.authenticatorData));
+    document.getElementById('get-json').innerText = uint8ToString(success.response.clientDataJSON);
+    document.getElementById('get-sig').innerText = h(new Uint8Array(success.response.signature));
+    document.getElementById('get-uh').innerText = h(new Uint8Array(success.response.userHandle));
+
+    console.log({ success });
+
+    setEvent('autofill success.');
+  }).catch(error => {
+    document.getElementById('error').innerText = error.message;
+    console.log({ error })
+    setEvent('autofill error.');
+  });
+  setEvent('autofill end.');
+}
+
+function autofillIOSSafari() {
+  let rpId = $("#rp-id").val();
+  let userVerification = $("#userVerification").val();
+
+  setEvent('autofill start.');
+
+  const abortController = new AbortController();
+
   navigator.credentials.get({
     mediation: 'conditional',  
     publicKey: {
