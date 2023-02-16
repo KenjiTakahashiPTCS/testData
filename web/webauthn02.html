@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
@@ -9,6 +9,7 @@
         minimum-scale=1.0,
         maximum-scale=2.0,
         user-scalable=yes" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
   <title>WebAuthn</title>
   <script src="https://unpkg.com/cbor-js-unofficial@0.1.0-a4/cbor.js"></script>
@@ -24,7 +25,7 @@
 <body>
   <div>
     RpID <input type="text" id="rp-id" value=""><br>
-    UserID <input type="text" id="user-id" x-model="username" autocomplete="username webauthn"><br>
+    <form>UserID <input type="text" id="user-id" name="username" autocomplete="username webauthn"></form>
     UserVerification <select id="userVerification"><option>required</option><option>preferred</option><option>discouraged</option></select><br>
     Attestation <select id="attestation"><option>direct</option><option>indirect</option><option>none</option></select><br>
     AuthenticatorAttachment <select id="authenticatorAttachment"><option>platform</option><option>cross-platform</option></select><br>
@@ -44,7 +45,6 @@
   <button onClick="create();">Create Security Key</button>
   <button onClick="get();">Get Security Key</button>
   <button onClick="autofill();">Autofill</button>
-  <button onClick="autofillIOSSafari();">AutofillSafari</button>
   <hr>
   <span id="event"></span><br>
   <hr>
@@ -112,11 +112,23 @@ function b64decode(val) {
   return atob(val)
 }
 
+const abortController = new AbortController();
+const abortSignal = abortController.signal;
+
 let challenge = "my_challenge.my_challenge";
 let registId = [];
 
 document.getElementById('support').innerText = ('credentials' in navigator) ? 'Support' : 'UnSupport';
 document.getElementById('mediation').innerText = ('isConditionalMediationAvailable' in PublicKeyCredential) ? 'Support' : 'UnSupport';
+if ('isConditionalMediationAvailable' in PublicKeyCredential) {
+  PublicKeyCredential.isConditionalMediationAvailable().then(res => {
+    if (res) {
+      document.getElementById('mediation').innerText = 'Support (true)';
+    } else {
+      document.getElementById('mediation').innerText = 'Support (false)';
+    }
+  })
+}
 
 function setEvent(str) {
   document.getElementById('event').innerText = "Event: " + str;
@@ -316,56 +328,26 @@ function get() {
 }
 
 function autofill() {
-  let rpId = $("#rp-id").val();
-  let userVerification = $("#userVerification").val();
-
-  setEvent('autofill start.');
-
-  const abortController = new AbortController();
-
-  navigator.credentials.get({
-    mediation: 'conditional',  
-    publicKey: {
-      rpId: rpId,
-      userVerification: userVerification,
-      challenge: toBuffer8(challenge),
-    },
-    signal: abortController.signal,
-  }).then(success => {
-    document.getElementById('get-id').innerText = success.id;
-    document.getElementById('get-type').innerText = success.type;
-    document.getElementById('get-cbor').innerText = JSON.stringify(parseAuthenticatorData(success.response.authenticatorData));
-    document.getElementById('get-json').innerText = uint8ToString(success.response.clientDataJSON);
-    document.getElementById('get-sig').innerText = h(new Uint8Array(success.response.signature));
-    document.getElementById('get-uh').innerText = h(new Uint8Array(success.response.userHandle));
-
-    console.log({ success });
-
-    setEvent('autofill success.');
-  }).catch(error => {
-    document.getElementById('error').innerText = error.message;
-    console.log({ error })
-    setEvent('autofill error.');
-  });
-  setEvent('autofill end.');
+  PublicKeyCredential.isConditionalMediationAvailable()
+    .then(async (supported) => {
+      autofill2();
+    });
 }
-
-function autofillIOSSafari() {
+function autofill2() {
   let rpId = $("#rp-id").val();
   let userVerification = $("#userVerification").val();
 
   setEvent('autofill start.');
-
-  const abortController = new AbortController();
-
   navigator.credentials.get({
-    mediation: 'conditional',  
+    mediation: 'conditional',
     publicKey: {
       rpId: rpId,
       userVerification: userVerification,
+      allowCredentials: [],
       challenge: toBuffer8(challenge),
+      timeout: 60000,
     },
-    signal: abortController.signal,
+    signal: abortSignal,
   }).then(success => {
     document.getElementById('get-id').innerText = success.id;
     document.getElementById('get-type').innerText = success.type;
@@ -382,7 +364,6 @@ function autofillIOSSafari() {
     console.log({ error })
     setEvent('autofill error.');
   });
-  setEvent('autofill end.');
 }
 
 // 検証
