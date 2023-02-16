@@ -28,6 +28,7 @@
     <form>UserID <input type="text" id="user-id" name="username" autocomplete="username webauthn"></form>
     UserVerification <select id="userVerification"><option>required</option><option>preferred</option><option>discouraged</option></select><br>
     Attestation <select id="attestation"><option>direct</option><option>indirect</option><option>none</option></select><br>
+    Mediation <select id="mediation"><option>optional</option><option>required</option><option>conditional</option><option>silent</option><option>none</option></select><br>
     AuthenticatorAttachment <select id="authenticatorAttachment"><option>platform</option><option>cross-platform</option></select><br>
     <label>ResidentKey <input type="checkbox" id="requireResidentKey" value="1" checked></label><br>
     <br>
@@ -45,6 +46,7 @@
   <button onClick="create();">Create Security Key</button>
   <button onClick="get();">Get Security Key</button>
   <button onClick="autofill();">Autofill</button>
+  <button onClick="getMediation();">Get Mediation Option</button>
   <hr>
   <span id="event"></span><br>
   <hr>
@@ -303,6 +305,83 @@ function get() {
 
   setEvent('get start.');
   navigator.credentials.get({
+    publicKey: {
+      rpId: rpId,
+      userVerification: userVerification,
+      allowCredentials: allowCredentials,
+      challenge: toBuffer8(challenge),
+    },
+  }).then(success => {
+    document.getElementById('get-id').innerText = success.id;
+    document.getElementById('get-type').innerText = success.type;
+    document.getElementById('get-cbor').innerText = JSON.stringify(parseAuthenticatorData(success.response.authenticatorData));
+    document.getElementById('get-json').innerText = uint8ToString(success.response.clientDataJSON);
+    document.getElementById('get-sig').innerText = h(new Uint8Array(success.response.signature));
+    document.getElementById('get-uh').innerText = h(new Uint8Array(success.response.userHandle));
+
+    console.log({ success });
+
+    setEvent('get success.');
+  }).catch(error => {
+    document.getElementById('error').innerText = error.message;
+    console.log({ error })
+    setEvent('get error.');
+  });
+}
+
+function getMediation() {
+  document.getElementById('error').innerText = "";
+
+  let mediation = $("mediation").val();
+  let rpId = $("#rp-id").val();
+  let credentialId = $("#credential-id").val();
+  let userVerification = $("#userVerification").val();
+  let transports = [];
+  let allowCredentials = [];
+
+  let transportsInternal = $("#transportsInternal").prop("checked");
+  let transportsHybrid = $("#transportsHybrid").prop("checked");
+  let transportsUsb = $("#transportsUsb").prop("checked");
+  let transportsBle = $("#transportsBle").prop("checked");
+  let transportsNfc = $("#transportsNfc").prop("checked");
+
+  if (transportsInternal) {
+    transports.push('internal');
+  }
+  if (transportsHybrid) {
+    transports.push('hybrid');
+  }
+  if (transportsUsb) {
+    transports.push('usb');
+  }
+  if (transportsBle) {
+    transports.push('ble');
+  }
+  if (transportsNfc) {
+    transports.push('nfc');
+  }
+
+  for (const _registId of registId) {
+    allowCredentials.push({
+      transports: transports,
+      type: 'public-key',
+      id: _registId,
+    });
+  }
+
+  if (credentialId) {
+    allowCredentials.push({
+      transports: transports,
+      type: 'public-key',
+      id: toBuffer8(b64decode(credentialId)),
+    });
+  }
+
+  console.log("credentials.get: publicKey.allowCredentials:", allowCredentials);
+
+  setEvent('get start.');
+  navigator.credentials.get({
+    mediation: mediation,
     publicKey: {
       rpId: rpId,
       userVerification: userVerification,
